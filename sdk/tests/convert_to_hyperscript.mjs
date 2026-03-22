@@ -92,7 +92,31 @@ function escapeString(str) {
   return JSON.stringify(str);
 }
 
-function nodeToHyperscript(node, indent = 2) {
+function getScriptExt(type) {
+  if (type === 'text/glsl' || type === 'x-shader/x-glsl') return '.glsl';
+  if (type === 'text/plain' || type === 'text') return '.txt';
+  return '.js';
+}
+
+function writeScriptFile(baseDir, scriptNum, type, content) {
+  const ext = getScriptExt(type);
+  const fileName = `script${scriptNum}${ext}`;
+  const relativePath = fileName;
+  const fullPath = join(baseDir, fileName);
+  writeFileSync(fullPath, content);
+  return relativePath;
+}
+
+function writeScriptFileWithPrefix(baseDir, prefix, scriptNum, type, content) {
+  const ext = getScriptExt(type);
+  const fileName = `${prefix}-script${scriptNum}${ext}`;
+  const relativePath = fileName;
+  const fullPath = join(baseDir, fileName);
+  writeFileSync(fullPath, content);
+  return relativePath;
+}
+
+function nodeToHyperscript(node, indent = 2, context = {}) {
   const spaces = ' '.repeat(indent);
   const tag = node.tagName ? node.tagName.toLowerCase() : null;
 
@@ -114,8 +138,16 @@ function nodeToHyperscript(node, indent = 2) {
     }
   }
 
+  if (tag === 'script' && node.innerHTML && node.innerHTML.trim()) {
+    context.scriptNum = (context.scriptNum || 0) + 1;
+    const type = attrs.type || 'text/javascript';
+    const src = writeScriptFileWithPrefix(context.outDir, context.prefix, context.scriptNum, type, node.innerHTML);
+    attrs.src = src;
+    delete attrs.type;
+  }
+
   const children = node.childNodes
-    .map(child => nodeToHyperscript(child, indent + 2))
+    .map(child => nodeToHyperscript(child, indent + 2, context))
     .filter(c => c !== null);
 
   const childrenStr = children.length > 0
@@ -129,7 +161,7 @@ function nodeToHyperscript(node, indent = 2) {
   return `h("${tag}", ${attrsStr}, ${childrenStr})`;
 }
 
-function convertHtmlToHyperscript(htmlPath) {
+function convertHtmlToHyperscript(htmlPath, outDir) {
   const html = readFileSync(htmlPath, 'utf-8');
   const root = parse(html, { blockTextElements: { script: true, style: true, noscript: true } });
 
@@ -142,10 +174,12 @@ function convertHtmlToHyperscript(htmlPath) {
   lines.push(`function ${funcName}(h) {`);
 
   const parts = [];
+  const prefix = basename(htmlPath, extname(htmlPath));
+  const context = { outDir, prefix };
 
   if (head && head.childNodes.length > 0) {
     const headNodes = head.childNodes
-      .map(child => nodeToHyperscript(child, 2))
+      .map(child => nodeToHyperscript(child, 2, context))
       .filter(n => n !== null);
     if (headNodes.length > 0) {
       parts.push(`  h("head", null, [${headNodes.join(', ')}])`);
@@ -154,7 +188,7 @@ function convertHtmlToHyperscript(htmlPath) {
 
   if (body) {
     const bodyNodes = body.childNodes
-      .map(child => nodeToHyperscript(child, 2))
+      .map(child => nodeToHyperscript(child, 2, context))
       .filter(n => n !== null);
     if (bodyNodes.length > 0) {
       parts.push(`  h("body", null, [${bodyNodes.join(', ')}])`);
@@ -179,12 +213,12 @@ function processTests(tests, baseDir, results) {
       const srcPath = join(baseDir, normalizedPath);
       const hyperPath = srcPath.replace(/\.html$/, '.hyper.js');
 
-      const output = convertHtmlToHyperscript(srcPath);
-
       const outDir = dirname(hyperPath);
       if (!existsSync(outDir)) {
         mkdirSync(outDir, { recursive: true });
       }
+
+      const output = convertHtmlToHyperscript(srcPath, outDir);
 
       writeFileSync(hyperPath, output);
 
