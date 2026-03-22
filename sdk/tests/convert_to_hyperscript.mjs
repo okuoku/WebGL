@@ -171,7 +171,7 @@ function convertHtmlToHyperscript(htmlPath, outDir) {
   const head = root.querySelector('head');
 
   const lines = [];
-  const funcName = getFunctionName(htmlPath);
+  const funcName = `test_${getFunctionName(htmlPath)}`;
 
   lines.push(`function ${funcName}(h) {`);
 
