@@ -93,9 +93,11 @@ function escapeString(str) {
 }
 
 function getScriptExt(type) {
+  if (type === 'text/javascript') return '.js';
   if (type === 'text/glsl' || type === 'x-shader/x-glsl') return '.glsl';
+  if (type === 'x-shader/x-fragment' || type === 'x-shader/x-vertex') return '.glsl';
   if (type === 'text/plain' || type === 'text') return '.txt';
-  return '.js';
+  return '.txt';
 }
 
 function writeScriptFile(baseDir, scriptNum, type, content) {
@@ -143,7 +145,7 @@ function nodeToHyperscript(node, indent = 2, context = {}) {
     const type = attrs.type || 'text/javascript';
     const src = writeScriptFileWithPrefix(context.outDir, context.prefix, context.scriptNum, type, node.innerHTML);
     attrs.src = src;
-    delete attrs.type;
+    node.innerHTML = "";
   }
 
   const children = node.childNodes
