@@ -1,0 +1,10 @@
+# Yuniframe
+/node_modules/
+*.hyper.js
+/hypertests.json
+*-script?.txt
+*-script?.js
+*-script?.glsl
+*-script??.txt
+*-script??.js
+*-script??.glsl
